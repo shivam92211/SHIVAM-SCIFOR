@@ -32,21 +32,34 @@ def idx_to_word(integer, tokenizer):
 
 def predict_caption(model, image, tokenizer, max_length):
     in_text = 'startseq'
+    repeated_word_count = 0
+    previous_word = None
     for i in range(max_length):
         sequence = tokenizer.texts_to_sequences([in_text])[0]
         sequence = pad_sequences([sequence], max_length)
         yhat = model.predict([image, sequence], verbose=0)
         yhat = np.argmax(yhat)
         word = idx_to_word(yhat, tokenizer)
-        if word is None or word == 'endseq':
+        
+        # Break if we hit the end token or repeat the same word too much
+        if word is None or word == 'endseq' or (word == previous_word and repeated_word_count > 2):
             break
+        
         in_text += " " + word
-    return in_text
+        
+        # Track the repeated word
+        if word == previous_word:
+            repeated_word_count += 1
+        else:
+            repeated_word_count = 0
+        previous_word = word
+
+    return in_text.strip('startseq ').strip()
 
 # Load the VGG16 model and the captioning model
 vgg_model = VGG16()
 vgg_model = Model(inputs=vgg_model.inputs, outputs=vgg_model.layers[-2].output)
-model = load_model("model2.keras")
+model = load_model("model.keras")
 
 # Streamlit app
 st.title("Image Caption Generator")
